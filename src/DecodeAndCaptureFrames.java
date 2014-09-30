@@ -1,7 +1,13 @@
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 
 import javax.imageio.ImageIO;
+
+import br.com.caelum.vraptor.interceptor.multipart.UploadedFile;
 
 import com.xuggle.mediatool.IMediaReader;
 import com.xuggle.mediatool.MediaListenerAdapter;
@@ -11,7 +17,8 @@ import com.xuggle.xuggler.Global;
 
 public class DecodeAndCaptureFrames extends Thread {
 
-	public final int SECONDS_BETWEEN_FRAMES = 5;
+	public final int NUMER_OF_FRAMES = 6;
+	public final int SECONDS_BETWEEN_FRAMES = 10;
 	private final String DIR_STREAM = "/usr/local/WowzaStreamingEngine/content/";
 	private final String DIR_FRAMES = "/usr/share/tomcat7/webapps/sonyguru/imgs/";
 	
@@ -83,10 +90,14 @@ public class DecodeAndCaptureFrames extends Thread {
 
 				if (event.getTimeStamp() - mLastPtsWrite >= MICRO_SECONDS_BETWEEN_FRAMES) {
 
-					File file = new File(DIR_FRAMES + frameFilename + "_" + count++ + ".png");
-					ImageIO.write(event.getImage(), "png", file);
+					File origin = new File(DIR_FRAMES + frameFilename + "_" + count++ + "_origin.jpg");
+					File thumb = new File(DIR_FRAMES + frameFilename + "_" + count++ + ".jpg");
+					
+					ImageIO.write(event.getImage(), "jpg", origin);
 
-					if (count > 5)
+					BufferedImage bufferefImg = thumbnail(origin, thumb, 640, 480);
+					
+					if (count > NUMER_OF_FRAMES)
 						count = 1;
 					
 					mLastPtsWrite += MICRO_SECONDS_BETWEEN_FRAMES;
@@ -95,6 +106,41 @@ public class DecodeAndCaptureFrames extends Thread {
 				e.printStackTrace();
 			}
 		}
+		
+	}
+	
+	private BufferedImage thumbnail(File original, File thumbnail, int larg, int alt) throws IOException {
+		
+		BufferedImage img = ImageIO.read(original);
+		double altImg = img.getHeight();
+		double larImg = img.getWidth();
+		double escala = 1.0;
+		
+		if (altImg > larImg)
+			escala = alt / altImg;
+		else
+			escala = larg / larImg;
+		
+		// So ajusta altera as dimencoes da imagem se form reducao
+		if (escala < 1.0) {
+			larImg = larImg * escala;
+			altImg = altImg * escala;
+		}
+		
+		Double novaLarg = Math.floor(larImg) + (Math.floor(larImg) == larImg ? 0 : 1);
+		Double novaAlt = Math.floor(altImg) + (Math.floor(altImg) == altImg ? 0 : 1);
+		int x = new Double((larg - novaLarg) / 2).intValue();
+		int y = new Double((alt - novaAlt) / 2).intValue();
+		
+		BufferedImage novaImagem = new BufferedImage(larg, alt, BufferedImage.TYPE_INT_RGB);
+		
+		Graphics2D graph2D = novaImagem.createGraphics();
+		graph2D.fillRect(0, 0, larg, alt);
+		graph2D.drawImage(img.getScaledInstance(novaLarg.intValue(), novaAlt.intValue(), Image.SCALE_SMOOTH), x, y, null);
+		
+		ImageIO.write(novaImagem, "JPG", thumbnail);
+			
+		return novaImagem;
 		
 	}
 
